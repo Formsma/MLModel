@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri May 17 15:17:00 2019
+Python V3.7.1
+
+@author: Job Formsma
+"""
+
+import sys
+
+from mlmodel.parser import MLparser
+
+
+def main():
+    # Check if input arguments exist
+    try:
+        filename = sys.argv[1]
+    except IndexError:
+        print("No argument given! Filename of input is expected")
+        sys.exit(1)
+
+    parser = MLparser(filename)
+    parser.plot()
+
+
+if __name__ == "__main__":
+
+    main()

@@ -1,0 +1,19 @@
+DM2 input file
+     
+%
+
+
+FREQUENCY        [1e12,1.4e12,10000]
+ANGLE            0   
+POLARIZATION     s
+
+
+%%
+
+#  thickness    dielectric   loss tangent   
+ 280e-6         11.68           1e-4        
+ 675e-6          1              0           
+   8e-3         11.68           1e-4        
+ 675e-6          1              0           
+ 280e-6         11.68           1e-4        
+ 
