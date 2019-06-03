@@ -10,7 +10,6 @@ Python V3.7.1
 import numpy as np
 
 # Constants
-Z_0 = 120 * np.pi       # Zero impedance of free space
 c = 299792458           # Speed of light
 
 
@@ -19,7 +18,7 @@ class TLmatrix():
     for a given layer of dielectric medium in a system
     """
 
-    def __init__(self, d=None, e=None,
+    def __init__(self, d=None, e=None, e_surr=None,
                  angle=None, frequency=None, polarization=None):
         """At construction the matrix elements are calculated according
         to the input layer and incident radiation. If no input is given
@@ -28,6 +27,7 @@ class TLmatrix():
         args:
             d:              thickness of medium
             e:              dielectric constant of the medium
+            e_surr:         dielectric constant of surrounding medium
             angle:          angle of incidence of radiation
             frequency:      frequency of radiation through the medium
             polarization:   polarization of the incident radiation
@@ -35,16 +35,13 @@ class TLmatrix():
         # If there is input calculate the matrix elements
         if d is not None:
 
-            # Calculate impedance for both possible polarizations
-            if polarization == 'p':
-                Z = Z_0 * np.sqrt(e - np.sin(angle)**2) / e
-            elif polarization == 's':
-                Z = Z_0 / np.sqrt(e - np.sin(angle)**2)
-            else:
-                raise ValueError("Polarization input should be 's' or 'p'")
+            # Calculate impedance
+            Z = self.impedance(e, angle, polarization)
 
             # Compute transverse angle via Snell's law
-            angle_t = np.arcsin(1 / np.real(e**0.5) * np.sin(angle))
+            angle_t = np.arcsin(np.real(e_surr**0.5)
+                                / np.real(e**0.5)
+                                * np.sin(angle))
 
             # Go to wavelength space for next equations
             wavelength = c / frequency
@@ -54,7 +51,7 @@ class TLmatrix():
                                   np.cos(angle_t))
 
             # Compute matrix elements
-            self.A = np.cosh(gamma * d)                                   # uitzoeken welke transpose is en elke niet al gamma transpose dan meot d normaal zijn
+            self.A = np.cosh(gamma * d)
             self.B = np.sinh(gamma * d) * Z
             self.C = np.sinh(gamma * d) / Z
             self.D = np.cosh(gamma * d)
@@ -65,6 +62,20 @@ class TLmatrix():
             self.B = 0
             self.C = 0
             self.D = 1
+
+    def impedance(self, e, angle, polarization):
+        """specific impedance < naam is neit correct"""
+
+        # Free space zero impedance
+        Z_0 = 120 * np.pi
+
+        # Calculate impedance for both possible polarizations
+        if polarization == 'p':
+            return Z_0 * np.sqrt(e - np.sin(angle)**2) / e
+        elif polarization == 's':
+            return Z_0 / np.sqrt(e - np.sin(angle)**2)
+        else:
+            raise ValueError("Polarization input should be 's' or 'p'")
 
     def __str__(self):
         """Overload for nice print statements"""

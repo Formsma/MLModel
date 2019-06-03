@@ -10,6 +10,7 @@ Python V3.7.1
 """
 
 import numpy as np
+from scipy.interpolate import interp1d
 
 from mlmodel.tlmatrix import TLmatrix
 
@@ -25,37 +26,42 @@ class MLsystem():
     reflection, transmission and absorption in such a system (i.e. a
     Fabry-Perot). Layers can be added to the system after which the
     complete system response is determined via the transmission line
-    theory. The incident medium and last transverse medium is both air.
+    theory. The dielectric constant of the medium surrounding the
+    system can be inputted at construction.
     """
 
-    def __init__(self):
-        """Initialize empty lists for layer storage"""
+    def __init__(self, e_surr=1):
+        """Initialize empty lists for layer storage.
+
+        args:
+            e_surr:    dielectric constant of surrounding medium
+        """
+
+        # Incident and surrounding medium dielectric constant
+        self.e_surr = e_surr
 
         # Layer storage
         self.d = []                 # thickness of layer
         self.e = []                 # dielectric constant
+        self.CTE = []               # CTE component layer
         self.N = 0                  # amount of layers
 
-        # Temperature coefficients of the layers
-        self.alpha = []
-
-    def add_layer(self, d, e, a=0):
+    def add_layer(self, d, e, cte="none"):
         """Add a layer of dielectric medium to the system. The
         thickness and dielectric constant are stored for later use.
 
         args:
-            d:  thickness medium
-            e:  dielectric constant medium
-            a:  coefficient of thermal expansion at room temperature
+            d:  thickness medium at room temperature
+            e:  dielectric constant medium measured close to room temp
         """
 
         self.d.append(d)            # add thickness to storage
         self.e.append(e)            # add dielectric constant
-        self.alpha.append(a)        # CTE component layer
+        self.CTE.append(cte)        # add CTE information
         self.N += 1                 # increase amount of layers
 
-    def RTA(self, angle, frequency, polarization):
-        """Determine the reflectance, transmittance and absorption of
+    def RT(self, angle, frequency, polarization, temperature=None):
+        """Determine the reflectance and transmittance of
         the full system. The transmission line matrix of the full
         system is computed by multiplying the matrices of the
         individual layers.
@@ -75,22 +81,21 @@ class MLsystem():
         # Loop over the layers to compute transmission line matrix of system
         for n in range(self.N):
 
-            # Calculate thickness layer dependent on the system temperature
-            d = self.d[n]                                                      # WORK IN PROGRESSS
+            # Calculate thickness given temperature and CTE
+            if temperature is not None:
+                d = self.expansion(n, temperature)
+            else:
+                d = self.d[n]
 
-            # Calculate refractive index dependent on system temperature
-            e = self.e[n]                                                       # WORK IN PROGRESSS
+            # Print layer info
+            self._info(n, d, self.e[n])
 
             # Construct and multiply a layer matrix to the system
-            M @= TLmatrix(d, e, angle, frequency, polarization)
+            M @= TLmatrix(d, self.e[n], self.e_surr,
+                          angle, frequency, polarization)
 
         # Compute source impedance
-        if polarization == 'p':
-            Z_s = Z_0 * np.cos(angle)
-        elif polarization == 's':
-            Z_s = Z_0 / np.cos(angle)
-        else:
-            raise ValueError("Polarization input should be 's' or 'p'")
+        Z_s = M.impedance(self.e_surr, angle, polarization)
 
         # Reflection coefficient
         r = ((M.A * Z_s + M.B - M.C * Z_s * Z_s - M.D * Z_s) /
@@ -105,23 +110,30 @@ class MLsystem():
 
         return R, T
 
-    def __str__(self):
-        """Overload for print statements to nicely see the layers of
-        the system
+    def expansion(self, n, temperature):
+        """Calculate the thickness of the layer which is altered
+        due to a different temperature than the given reference
+        thickness
 
+        args:
+            n:              layer number
+            temperature:    temperature of system
         returns:
-            string: string consisting of matrix elements
+            d:              thickness of layer
         """
-        # Start with basic information
-        string = "System consists of {} layer{}\n\n".format(self.N, 's'*self.N)
-        string += "|    | Thickness (m) | Dielectric constant |       CTE |\n"
 
-        # Loop over layers to add information
-        for n in range(self.N):
+        # Extract CTE components from database
+        T, f = np.loadtxt("mlmodel/data/{}_t.dat".format(self.CTE[n]),
+                          unpack=True)
 
-            # Add layer to string table
-            string += "| {0:2} | {1} | {2:19} | {3:9} |\n".format(
-                n, self.d[n], self.e[n], self.alpha[n]
-            )
+        # Interpolate for the temperature of system
+        return self.d[n] * (1 + interp1d(T, f)(temperature))
 
-        return string
+    def _info(self, n, d, e):
+        """Print info of a system layer to the standard output"""
+
+        print("Layer {}:".format(n))
+        print("d:   ", d)
+        print("e:   ", e)
+        print("CTE: ", self.CTE[n])
+        print()

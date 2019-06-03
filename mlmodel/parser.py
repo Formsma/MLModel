@@ -29,27 +29,26 @@ class MLparser():
             filename:    filename of input system
         """
 
-        # Check if input exists
+        # Databse components
+        self.database = ["silicon", "aluminum"]
+
+        # Parser parameters
+        self.N = 0                            # Line count
+        self.mode = "INITIAL"                 # Set initial parse mode
+
+        # System parameters
+        self.system = MLsystem()              # Initialize multilayer system
+        self.param = []                       # Parametric variables storage
+
+        # Default radiation parameters
+        self.frequency = np.array([1e12])     # Default 1 THz
+        self.angle = np.zeros(1)              # Default angle of zero
+        self.polarization = 's'               # Default s polarization
+        self.T = None                         # Default room temperature
+
         try:
-            self.file = open(filename, 'r')
-        except Exception as e:
-            raise e
-
-        self.system = MLsystem()            # Initialize multilayer system
-        self.mode = "INITIAL"               # Set initial parse mode
-        self.N = 0                          # Line count
-        self.param = []                     # Parametric plot counter
-
-        # Setup default values for input radiation
-        self.frequency = np.array([1e12])   # Default 1 THz
-        self.angle = np.zeros(1)            # Default angle of zero
-        self.polarization = 's'             # Default s polarization
-        self.T = 293.2                      # Default room temperature
-
-        # Start parsing of file
-        try:
-            self._read()
-            # self._print()
+            self.file = open(filename, 'r')   # Open input file
+            self._read()                      # Read input file
         except Exception as e:
             print("Line {}: ".format(self.N) + str(e))
             sys.exit(1)
@@ -65,7 +64,7 @@ class MLparser():
         if (self.polarization == 's') or (self.polarization == 'sp'):
 
             # Calculate the reflectance and transmittance for s
-            R, T = self.system.RTA(self.angle, self.frequency, 's')
+            R, T = self.system.RT(self.angle, self.frequency, 's', self.T)
 
             # Store data in case multiple polarizations are used
             storage.append([R, T, 1 - R - T])
@@ -73,7 +72,7 @@ class MLparser():
         if (self.polarization == 'p') or (self.polarization == 'sp'):
 
             # Calculate the reflectance and transmittance for s
-            R, T = self.system.RTA(self.angle, self.frequency, 'p')
+            R, T = self.system.RT(self.angle, self.frequency, 'p', self.T)
 
             # Store data in case multiple polarizations are used
             storage.append([R, T, 1 - R - T])
@@ -82,8 +81,6 @@ class MLparser():
         fig, frames = plt.subplots(3, 1, figsize=(15, 8), sharex=True)
 
         labels = ['Reflectance', 'Transmittance', 'Absorption']
-
-        print("\n\nOutput...\n")
 
         # Iterate over polarization plots
         for i, data in enumerate(storage):
@@ -151,6 +148,9 @@ class MLparser():
                 if j == 0:
                         frame.legend(loc=1)
 
+        np.savetxt("output/R.txt", R)
+        np.savetxt("output/T.txt", T)
+
         plt.show()
 
     def _error(self, string):
@@ -169,12 +169,10 @@ class MLparser():
             self.N += 1
 
             # Cut line into space seperated list
-            line = line.split()
+            line = line[:line.find('#')].split()
 
             # Skip all empty lines and comments
             if len(line) == 0:
-                continue
-            elif line[0][0] == '#':
                 continue
 
             # If initial mode, do nothing until % is found
@@ -229,11 +227,8 @@ class MLparser():
         # If the line starts with the TEMPERATURE token
         elif line[0] == "TEMPERATURE":
 
-            self._error("TEMPERATURE not yet supported")
-            #self.T = self._parse(line[1:])
-            #if not isinstance(self.T, float):
-            #    self._error("Parametric input for temperature not supported")
-            #self._param(self.T, "K")
+            self.T = self._parse(line[1:])
+            self._param(self.T, "K")
 
         # If token fails
         else:
@@ -252,7 +247,9 @@ class MLparser():
 
         # If single value input extract it
         if isinstance(entry, list):
-            if len(entry) == 1:
+            if len(entry) == 0:
+                self._error("Input error")
+            elif len(entry) == 1:
                 entry = entry[0]
             else:
                 return np.linspace(*[float(i) for i in entry])
@@ -286,29 +283,35 @@ class MLparser():
         """Use the input to fill the system with layers, the add_layer
         fuction is called in every line provided in the input file.
 
-        WIP: if a string is given with a filename the input is
-        assumed to be a file instead of single float value
+        WIP: exception management
         """
 
-        # Input data
-        data = []
+        # Thickness input
+        d = self._parse(line[0])
 
-        # List for names
-        names = ['m', "dielectric", "loss tangent"]
-        # Loop over line contents to look for lists
+        # Parse string input of material or dielectric constant
+        if line[1].lower() in ["air", "vacuum", "empty"]:
+            real = 1
+            loss = 0
 
-        for i, entry in enumerate(line):
-            entry = self._parse(entry)
-            self._param(entry, names[i])
-            data.append(entry)
+        elif line[1].lower() in self.database:
+            real, loss = np.loadtxt(
+                "mlmodel/data/{}_e.dat".format(line[1].lower()), unpack=True
+                )
+        else:
+            real = self._parse(line[1])
+            loss = self._parse(line[2])
+
+        # Check if CTE component is given
+        if line[-1] in self.database:
+
+            # CTE component
+            cte = line[-1]
+        else:
+            cte = "none"
 
         # Calculate complex dielectric constant
-        e = data[1] * (1 - 1j * data[2])
+        e = real * (1 - 1j * loss)
 
-        # Add layer to system
-        if len(data) == 3:
-            self.system.add_layer(data[0], e)
-        #elif len(data) == 4:
-        #    self.system.add_layer(data[0], e, data[3])
-        else:
-            self._error("Incorrect input for system layer")
+        # Add layer to the system
+        self.system.add_layer(d, e, cte)
