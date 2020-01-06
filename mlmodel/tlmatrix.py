@@ -18,13 +18,14 @@ class TLmatrix():
     for a given layer of dielectric medium in a system
     """
 
-    def __init__(self, d=None, e=None, e_surr=None,
+    def __init__(self, layer_type=None, d=None, e=None, e_surr=None,
                  angle=None, frequency=None, polarization=None):
         """At construction the matrix elements are calculated according
         to the input layer and incident radiation. If no input is given
         the matrix will be an identity matrix.
 
         args:
+            layer:          denotes layer type
             d:              thickness of medium
             e:              dielectric constant of the medium
             e_surr:         dielectric constant of surrounding medium
@@ -32,8 +33,8 @@ class TLmatrix():
             frequency:      frequency of radiation through the medium
             polarization:   polarization of the incident radiation
         """
-        # If there is input calculate the matrix elements
-        if d is not None:
+        # Check layer type
+        if layer_type == "layer":
 
             # Calculate impedance
             Z = self.impedance(e, angle, polarization)
@@ -55,6 +56,35 @@ class TLmatrix():
             self.B = np.sinh(gamma * d) * Z
             self.C = np.sinh(gamma * d) / Z
             self.D = np.cosh(gamma * d)
+
+        # If layer is a shunt element
+        elif layer_type == "shunt":
+
+            # Compute matrix elements
+            self.A = 1
+            self.B = 0
+            self.C = 1 / d
+            self.D = 1
+
+        # If layer is a grid element
+        elif layer_type == "grid" and polarization == 'p':
+
+            # Go to wavelength space for next equations
+            wavelength = c / frequency
+
+            # Calculate grid impedance
+            Z_0 = 120 * np.pi
+            Z = 1j * Z_0 * np.outer(d / wavelength, np.log(1 / np.sin(np.pi * e / d)))
+
+            # Correct for where Z is zero
+            Z[np.where(Z == 0)[0]] += 1
+
+            # Shunt like element
+            self.A = 1
+            self.B = 0
+            self.C = 1 / Z
+            self.D = 1
+
 
         # If no input is given the matrix will be a identity matrix
         else:

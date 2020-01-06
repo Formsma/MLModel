@@ -41,24 +41,73 @@ class MLsystem():
         self.e_surr = e_surr
 
         # Layer storage
-        self.d = []                 # thickness of layer
-        self.e = []                 # dielectric constant
-        self.CTE = []               # CTE component layer
-        self.N = 0                  # amount of layers
+        self.type = []               # Layer type
+        self.d = []                  # thickness of layer
+        self.e = []                  # dielectric constant
+        self.CTE = []                # CTE component layer
+        self.N = 0                   # amount of layers
 
-    def add_layer(self, d, e, cte="none"):
-        """Add a layer of dielectric medium to the system. The
-        thickness and dielectric constant are stored for later use.
+    def add(self, layer_type=None, d=None, e=None, cte=None):
+        """Store the inputted values in the class
 
         args:
-            d:  thickness medium at room temperature
-            e:  dielectric constant medium measured close to room temp
+            layer_type:    type of layer, i.e. dielectric or shunt
+            d:             thickness layer
+            e:             dielectric constant layer
+            CTE:           CTE component layer
         """
 
-        self.d.append(d)            # add thickness to storage
-        self.e.append(e)            # add dielectric constant
-        self.CTE.append(cte)        # add CTE information
-        self.N += 1                 # increase amount of layers
+        self.type.append(layer_type)
+        self.d.append(d)             # add thickness to storage
+        self.e.append(e)             # add dielectric constant
+        self.CTE.append(cte)         # add CTE information
+        self.N += 1                  # increase amount of layers
+
+    def rt(self, angle, frequency, polarization, temperature=None):
+        """Determine the reflectance and transmittance of
+        the full system. The transmission line matrix of the full
+        system is computed by multiplying the matrices of the
+        individual layers.
+
+        args:
+            angle:          angle of incidence on the system
+            frequency:      frequency of incident radiation
+            polarization:   polarizatino of incident radiations
+        returns:
+            r:              reflection coefficient of system
+            t:              transmission coefficient of the system
+        """
+
+        # Create identity matrix for multuiplication of the layers
+        M = TLmatrix()
+
+        # Loop over the layers to compute transmission line matrix of system
+        for n in range(self.N):
+
+            # Calculate thickness given temperature and CTE
+            if temperature is not None:
+                d = self._expansion(n, temperature)
+            else:
+                d = self.d[n]
+
+            # Print layer info
+            # self._info(n, d, self.e[n])
+
+            # Construct and multiply a layer matrix to the system
+            M @= TLmatrix(self.type[n], d, self.e[n], self.e_surr,
+                          angle, frequency, polarization)
+
+        # Compute source impedance
+        Z_s = M.impedance(self.e_surr, angle, polarization)
+
+        # Reflection coefficient
+        r = ((M.A * Z_s + M.B - M.C * Z_s * Z_s - M.D * Z_s) /
+             (M.A * Z_s + M.B + M.C * Z_s * Z_s + M.D * Z_s))
+
+        # Transmission coefficient
+        t = 2 * Z_s / (M.A * Z_s + M.B + M.C * Z_s * Z_s + M.D * Z_s)
+
+        return r, t
 
     def RT(self, angle, frequency, polarization, temperature=None):
         """Determine the reflectance and transmittance of
@@ -75,42 +124,15 @@ class MLsystem():
             T:              transmittance of the system
         """
 
-        # Create identity matrix for multuiplication of the layers
-        M = TLmatrix()
-
-        # Loop over the layers to compute transmission line matrix of system
-        for n in range(self.N):
-
-            # Calculate thickness given temperature and CTE
-            if temperature is not None:
-                d = self.expansion(n, temperature)
-            else:
-                d = self.d[n]
-
-            # Print layer info
-            self._info(n, d, self.e[n])
-
-            # Construct and multiply a layer matrix to the system
-            M @= TLmatrix(d, self.e[n], self.e_surr,
-                          angle, frequency, polarization)
-
-        # Compute source impedance
-        Z_s = M.impedance(self.e_surr, angle, polarization)
-
-        # Reflection coefficient
-        r = ((M.A * Z_s + M.B - M.C * Z_s * Z_s - M.D * Z_s) /
-             (M.A * Z_s + M.B + M.C * Z_s * Z_s + M.D * Z_s))
-
-        # Transmission coefficient
-        t = 2 * Z_s / (M.A * Z_s + M.B + M.C * Z_s * Z_s + M.D * Z_s)
+        # Get field coefficients
+        r, t = self.rt(angle, frequency, polarization, temperature)
 
         # Reflectance and Transmittance
         R = np.abs(r)**2
         T = np.abs(t)**2
-
         return R, T
 
-    def expansion(self, n, temperature):
+    def _expansion(self, n, temperature):
         """Calculate the thickness of the layer which is altered
         due to a different temperature than the given reference
         thickness
