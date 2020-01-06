@@ -63,7 +63,7 @@ class TLmatrix():
             # Compute matrix elements
             self.A = 1
             self.B = 0
-            self.C = 1 / d
+            self.C = 1 / d   # variable 'd' is used as shunt impedance!
             self.D = 1
 
         # If layer is a grid element
@@ -74,17 +74,17 @@ class TLmatrix():
 
             # Calculate grid impedance
             Z_0 = 120 * np.pi
-            Z = 1j * Z_0 * np.outer(d / wavelength, np.log(1 / np.sin(np.pi * e / d)))
+            Z = 1j * Z_0 * np.outer(d / wavelength,
+                                    np.log(1 / np.sin(np.pi * e / d)))
 
             # Correct for where Z is zero
-            Z[np.where(Z == 0)[0]] += 1
+            Z[Z == 0] += 1
 
             # Shunt like element
             self.A = 1
             self.B = 0
             self.C = 1 / Z
             self.D = 1
-
 
         # If no input is given the matrix will be a identity matrix
         else:
@@ -94,7 +94,15 @@ class TLmatrix():
             self.D = 1
 
     def impedance(self, e, angle, polarization):
-        """specific impedance < naam is neit correct"""
+        """Specific impedance
+
+        args:
+            e:              dielectric constant material
+            angle:          angle of incidence on material
+            polarization:   polarization state incident light on material
+        returns:
+            specific impedance of layer
+        """
 
         # Free space zero impedance
         Z_0 = 120 * np.pi
@@ -108,12 +116,12 @@ class TLmatrix():
             raise ValueError("Polarization input should be 's' or 'p'")
 
     def __str__(self):
-        """Overload for nice print statements"""
+        """Nice print statements"""
         return "A = {}\nB = {}\nC = {}\nD = {}\n".format(self.A, self.B,
                                                          self.C, self.D)
 
     def __imatmul__(self, other):
-        """As the transmission line matrix can be high dimensional
+        """As the transmission line matrix can be highly dimensional
         the imatmul operator for multiplying is overloaded to
         correctly calculate the new matrix, as the python
         implementation depends too much on dimensions.

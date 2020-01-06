@@ -41,11 +41,11 @@ class MLsystem():
         self.e_surr = e_surr
 
         # Layer storage
-        self.type = []               # Layer type
-        self.d = []                  # thickness of layer
-        self.e = []                  # dielectric constant
-        self.CTE = []                # CTE component layer
-        self.N = 0                   # amount of layers
+        self.type = []                # Layer type
+        self.d = []                   # thickness of layer
+        self.e = []                   # dielectric constant
+        self.CTE = []                 # CTE component layer
+        self.N = 0                    # amount of layers
 
     def add(self, layer_type=None, d=None, e=None, cte=None):
         """Store the inputted values in the class
@@ -57,14 +57,14 @@ class MLsystem():
             CTE:           CTE component layer
         """
 
-        self.type.append(layer_type)
-        self.d.append(d)             # add thickness to storage
-        self.e.append(e)             # add dielectric constant
-        self.CTE.append(cte)         # add CTE information
-        self.N += 1                  # increase amount of layers
+        self.type.append(layer_type)  # store layer type
+        self.d.append(d)              # add thickness to storage
+        self.e.append(e)              # add dielectric constant
+        self.CTE.append(cte)          # add CTE information
+        self.N += 1                   # increase amount of layers
 
     def rt(self, angle, frequency, polarization, temperature=None):
-        """Determine the reflectance and transmittance of
+        """Determine the reflectance and transmittance coefficient of
         the full system. The transmission line matrix of the full
         system is computed by multiplying the matrices of the
         individual layers.
@@ -110,7 +110,7 @@ class MLsystem():
         return r, t
 
     def RT(self, angle, frequency, polarization, temperature=None):
-        """Determine the reflectance and transmittance of
+        """Determine the real reflectance and transmittance of
         the full system. The transmission line matrix of the full
         system is computed by multiplying the matrices of the
         individual layers.
@@ -136,6 +136,8 @@ class MLsystem():
         """Calculate the thickness of the layer which is altered
         due to a different temperature than the given reference
         thickness
+
+        NOTE: THIS FUNCTION IS WIP AND RESULTS CAN BE WRONG
 
         args:
             n:              layer number

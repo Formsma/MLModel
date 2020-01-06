@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri May 17 13:36:06 2019
-s
+
 Python V3.7.1
 
 @author: Job Formsma
@@ -146,7 +146,7 @@ class MLparser():
                 frame.ticklabel_format(style='sci', axis='x',
                                        scilimits=(0, 0))
                 if j == 0:
-                        frame.legend(loc=1)
+                    frame.legend(loc=1)
 
         np.savetxt("output/R.txt", R)
         np.savetxt("output/T.txt", T)
