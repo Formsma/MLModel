@@ -26,7 +26,7 @@ def main():
     system = MLsystem(1)
 
     # Add individual layers of Fabry-Perot
-    system.add("layer", 0.275e-3, e_si)           # Silicon waver
+    system.add("layer", 0.275e-3, e_si)          # Silicon waver
     system.add("layer", 0.680e-3, 1)             # Air gap
     system.add("layer", 0.275e-3, e_si)          # Silicon waver
     system.add("layer", 0.680e-3, 1)             # Air gap
@@ -38,7 +38,7 @@ def main():
 
     # Radiation properties
     angle = [0]                                  # Incident angle(s)
-    frequency = np.linspace(100e9, 110e9, 1000)   # Hz
+    frequency = np.linspace(100e9, 110e9, 1000)  # Hz
     polarization = 's'
 
     # Calculate reflectance and transmittance
@@ -52,7 +52,7 @@ def main():
 def plotter(F, R, T, A):
 
     # Show Results
-    fig, frames = plt.subplots(3, 1, figsize=(6, 4), sharex=True)
+    fig, frames = plt.subplots(3, 1, figsize=(12, 8), sharex=True)
     frames[0].plot(F * 1e-9, R, label='Reflectance')
     frames[1].plot(F * 1e-9, T, label='Transmittance', c='g')
     frames[2].plot(F * 1e-9, A, label='Absorption', c='orange')
